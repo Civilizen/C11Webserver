@@ -6,12 +6,14 @@
 
 #include "epoller.h"
 
-Epoller::Epoller(int maxEvent):epollFd_(epoll_create(512)), events_(maxEvent){
+Epoller::Epoller(int maxEvent):
+    epollFd_(epoll_create(512)), 
+    events_(maxEvent){
     assert(epollFd_ >= 0 && events_.size() > 0);
 }
 
 Epoller::~Epoller() {
-    close(epollFd_);
+    close(epollFd_); // 创建的epollfd需要关闭，这里使用RAII思想
 }
 
 bool Epoller::AddFd(int fd, uint32_t events) {
@@ -19,7 +21,7 @@ bool Epoller::AddFd(int fd, uint32_t events) {
     epoll_event ev = {0};
     ev.data.fd = fd;
     ev.events = events;
-    return 0 == epoll_ctl(epollFd_, EPOLL_CTL_ADD, fd, &ev);
+    return 0 == epoll_ctl(epollFd_, EPOLL_CTL_ADD, fd, &ev); // 将条件判断的常量放在左边，这习惯可以很快发现编程的失误，如“==”写成了“=”
 }
 
 bool Epoller::ModFd(int fd, uint32_t events) {

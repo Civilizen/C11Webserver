@@ -14,9 +14,9 @@
 #include <thread>
 #include "../log/log.h"
 
-class SqlConnPool {
+class SqlConnPool { // 单例模式
 public:
-    static SqlConnPool *Instance();
+    static SqlConnPool *Instance(); // 返回一个已经创建的连接池，或者创建一个新的
 
     MYSQL *GetConn();
     void FreeConn(MYSQL * conn);
@@ -28,7 +28,7 @@ public:
     void ClosePool();
 
 private:
-    SqlConnPool();
+    SqlConnPool(); // 单例模式需要将构造函数私有化
     ~SqlConnPool();
 
     int MAX_CONN_;

@@ -23,13 +23,23 @@
 #include "../pool/sqlconnRAII.h"
 #include "../http/httpconn.h"
 
-class WebServer {
+class WebServer { // 单例模式
 public:
     WebServer(
-        int port, int trigMode, int timeoutMS, bool OptLinger, 
-        int sqlPort, const char* sqlUser, const  char* sqlPwd, 
-        const char* dbName, int connPoolNum, int threadNum,
-        bool openLog, int logLevel, int logQueSize);
+        int port, // 服务端口
+        int trigMode, // 触发模式
+        int timeoutMS, // timeouts
+        bool OptLinger, // ?
+        int sqlPort, // mysql 端口
+        const char* sqlUser, // mysql用户名称
+        const  char* sqlPwd, // mysql密码
+        const char* dbName, // 数据库名称
+        int connPoolNum, // 连接池数量
+        int threadNum, // 线程池数
+        bool openLog, // 日志开关
+        int logLevel, // 日志等级
+        int logQueSize //日志异步队列容量
+        );
 
     ~WebServer();
     void Start();
@@ -51,24 +61,24 @@ private:
     void OnWrite_(HttpConn* client);
     void OnProcess(HttpConn* client);
 
-    static const int MAX_FD = 65536;
+    static const int MAX_FD = 65536; 
 
     static int SetFdNonblock(int fd);
 
-    int port_;
-    bool openLinger_;
+    int port_; // 服务端口
+    bool openLinger_; /* 优雅关闭: 直到所剩数据发送完毕或超时 */
     int timeoutMS_;  /* 毫秒MS */
-    bool isClose_;
-    int listenFd_;
-    char* srcDir_;
+    bool isClose_;  // 服务是否关闭
+    int listenFd_; // 监听的socket
+    char* srcDir_; // webserver根目录
     
     uint32_t listenEvent_;
     uint32_t connEvent_;
    
-    std::unique_ptr<HeapTimer> timer_;
-    std::unique_ptr<ThreadPool> threadpool_;
-    std::unique_ptr<Epoller> epoller_;
-    std::unordered_map<int, HttpConn> users_;
+    std::unique_ptr<HeapTimer> timer_; // 计时器
+    std::unique_ptr<ThreadPool> threadpool_; // 线程池
+    std::unique_ptr<Epoller> epoller_; 
+    std::unordered_map<int, HttpConn> users_; //socket:http连接
 };
 
 

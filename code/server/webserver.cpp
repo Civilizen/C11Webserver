@@ -24,7 +24,7 @@ WebServer::WebServer(
     SqlConnPool::Instance()->Init("localhost", sqlPort, sqlUser, sqlPwd, dbName, connPoolNum);
 
     InitEventMode_(trigMode);
-    if(!InitSocket_()) { isClose_ = true;}
+    if(!InitSocket_()) { isClose_ = true;} // 初始化Socket
 
     if(openLog) {
         Log::Instance()->init(logLevel, "./log", ".log", logQueSize);
@@ -43,31 +43,31 @@ WebServer::WebServer(
 }
 
 WebServer::~WebServer() {
-    close(listenFd_);
+    close(listenFd_); // 需要关闭监听服务的文件描述符
     isClose_ = true;
     free(srcDir_);
     SqlConnPool::Instance()->ClosePool();
 }
 
 void WebServer::InitEventMode_(int trigMode) {
-    listenEvent_ = EPOLLRDHUP;
-    connEvent_ = EPOLLONESHOT | EPOLLRDHUP;
+    listenEvent_ = EPOLLRDHUP; //读端关闭
+    connEvent_ = EPOLLONESHOT | EPOLLRDHUP; // 连接只会触发一次
     switch (trigMode)
     {
     case 0:
         break;
     case 1:
-        connEvent_ |= EPOLLET;
+        connEvent_ |= EPOLLET; // 连接边缘触发
         break;
     case 2:
-        listenEvent_ |= EPOLLET;
+        listenEvent_ |= EPOLLET;// 监听边缘触发
         break;
     case 3:
-        listenEvent_ |= EPOLLET;
+        listenEvent_ |= EPOLLET;// 监听和连接都边缘触发
         connEvent_ |= EPOLLET;
         break;
     default:
-        listenEvent_ |= EPOLLET;
+        listenEvent_ |= EPOLLET;// 默认监听和连接都边缘触发
         connEvent_ |= EPOLLET;
         break;
     }
@@ -212,14 +212,14 @@ void WebServer::OnWrite_(HttpConn* client) {
 bool WebServer::InitSocket_() {
     int ret;
     struct sockaddr_in addr;
-    if(port_ > 65535 || port_ < 1024) {
+    if(port_ > 65535 || port_ < 1024) { // 端口的使用有限制，最大65535，0-1024是保留端口
         LOG_ERROR("Port:%d error!",  port_);
         return false;
     }
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);// Address to accept any incoming messages.
     addr.sin_port = htons(port_);
-    struct linger optLinger = { 0 };
+    struct linger optLinger = { 0 }; // 默认没有TIME_WAIT
     if(openLinger_) {
         /* 优雅关闭: 直到所剩数据发送完毕或超时 */
         optLinger.l_onoff = 1;
