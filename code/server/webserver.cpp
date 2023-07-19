@@ -8,6 +8,7 @@
 
 using namespace std;
 
+
 WebServer::WebServer(
             int port, int trigMode, int timeoutMS, bool OptLinger,
             int sqlPort, const char* sqlUser, const  char* sqlPwd,
@@ -21,7 +22,7 @@ WebServer::WebServer(
     strncat(srcDir_, "/resources/", 16);
     HttpConn::userCount = 0;
     HttpConn::srcDir = srcDir_;
-    SqlConnPool::Instance()->Init("localhost", sqlPort, sqlUser, sqlPwd, dbName, connPoolNum);
+    SqlConnPool::Instance()->Init("localhost", sqlPort, sqlUser, sqlPwd, dbName, connPoolNum);// 初始化SQL连接池
 
     InitEventMode_(trigMode);
     if(!InitSocket_()) { isClose_ = true;} // 初始化Socket
@@ -49,6 +50,7 @@ WebServer::~WebServer() {
     SqlConnPool::Instance()->ClosePool();
 }
 
+// 设置事件触发模式
 void WebServer::InitEventMode_(int trigMode) {
     listenEvent_ = EPOLLRDHUP; //读端关闭
     connEvent_ = EPOLLONESHOT | EPOLLRDHUP; // 连接只会触发一次
@@ -74,33 +76,35 @@ void WebServer::InitEventMode_(int trigMode) {
     HttpConn::isET = (connEvent_ & EPOLLET);
 }
 
+// 启动服务器
 void WebServer::Start() {
-    int timeMS = -1;  /* epoll wait timeout == -1 无事件将阻塞 */
+    /* epoll wait timeout == -1 无事件将阻塞 */
+    int timeMS = -1;  // 表示最近一个将过期的用户时间
     if(!isClose_) { LOG_INFO("========== Server start =========="); }
     while(!isClose_) {
         if(timeoutMS_ > 0) {
-            timeMS = timer_->GetNextTick();
+            timeMS = timer_->GetNextTick(); // 获取下一个用户的过期时间
         }
-        int eventCnt = epoller_->Wait(timeMS);
-        for(int i = 0; i < eventCnt; i++) {
+        int eventCnt = epoller_->Wait(timeMS); // 阻塞等待事件发生
+        for(int i = 0; i < eventCnt; i++) { 
             /* 处理事件 */
             int fd = epoller_->GetEventFd(i);
             uint32_t events = epoller_->GetEvents(i);
-            if(fd == listenFd_) {
+            if(fd == listenFd_) {// 连接事件
                 DealListen_();
             }
-            else if(events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
+            else if(events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {// 连接中断事件
                 assert(users_.count(fd) > 0);
                 CloseConn_(&users_[fd]);
             }
-            else if(events & EPOLLIN) {
+            else if(events & EPOLLIN) { // 读事件
                 assert(users_.count(fd) > 0);
                 DealRead_(&users_[fd]);
             }
-            else if(events & EPOLLOUT) {
+            else if(events & EPOLLOUT) { // 写事件
                 assert(users_.count(fd) > 0);
                 DealWrite_(&users_[fd]);
-            } else {
+            } else { // 未知事件
                 LOG_ERROR("Unexpected event");
             }
         }
@@ -119,14 +123,14 @@ void WebServer::SendError_(int fd, const char*info) {
 void WebServer::CloseConn_(HttpConn* client) {
     assert(client);
     LOG_INFO("Client[%d] quit!", client->GetFd());
-    epoller_->DelFd(client->GetFd());
-    client->Close();
+    epoller_->DelFd(client->GetFd()); // 从epoll中删除该连接
 }
 
 void WebServer::AddClient_(int fd, sockaddr_in addr) {
     assert(fd > 0);
-    users_[fd].init(fd, addr);
+    users_[fd].init(fd, addr); // 将连接fd与用户的套接字map起来
     if(timeoutMS_ > 0) {
+        // 利用bind实现函数绑定
         timer_->add(fd, timeoutMS_, std::bind(&WebServer::CloseConn_, this, &users_[fd]));
     }
     epoller_->AddFd(fd, EPOLLIN | connEvent_);
@@ -135,37 +139,40 @@ void WebServer::AddClient_(int fd, sockaddr_in addr) {
 }
 
 void WebServer::DealListen_() {
-    struct sockaddr_in addr;
+    struct sockaddr_in addr; // 用于保存客户套接字
     socklen_t len = sizeof(addr);
     do {
-        int fd = accept(listenFd_, (struct sockaddr *)&addr, &len);
+        int fd = accept(listenFd_, (struct sockaddr *)&addr, &len); // 接受连接，非阻塞的
         if(fd <= 0) { return;}
-        else if(HttpConn::userCount >= MAX_FD) {
+        else if(HttpConn::userCount >= MAX_FD) { // http连接是否超过最大限制
             SendError_(fd, "Server busy!");
             LOG_WARN("Clients is full!");
             return;
         }
         AddClient_(fd, addr);
-    } while(listenEvent_ & EPOLLET);
+    } while(listenEvent_ & EPOLLET);// 边缘触发，系统只会通知一次，所以一定要循环到accept返回-1
 }
-
+// 服务器处理读事件
 void WebServer::DealRead_(HttpConn* client) {
     assert(client);
-    ExtentTime_(client);
+    ExtentTime_(client);// 调整client的最近响应时间
+    // 利用线程池处理读事件
     threadpool_->AddTask(std::bind(&WebServer::OnRead_, this, client));
 }
-
+// 服务器处理写事件
 void WebServer::DealWrite_(HttpConn* client) {
     assert(client);
     ExtentTime_(client);
     threadpool_->AddTask(std::bind(&WebServer::OnWrite_, this, client));
 }
 
+// 增加客户的过期时间
 void WebServer::ExtentTime_(HttpConn* client) {
     assert(client);
     if(timeoutMS_ > 0) { timer_->adjust(client->GetFd(), timeoutMS_); }
 }
 
+// 读取socket传输的数据
 void WebServer::OnRead_(HttpConn* client) {
     assert(client);
     int ret = -1;
@@ -179,10 +186,10 @@ void WebServer::OnRead_(HttpConn* client) {
 }
 
 void WebServer::OnProcess(HttpConn* client) {
-    if(client->process()) {
+    if(client->process()) { //写就绪了
         epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLOUT);
-    } else {
-        epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLIN);
+    } else {// 读就绪
+        epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLIN); 
     }
 }
 
@@ -275,7 +282,7 @@ bool WebServer::InitSocket_() {
 
 int WebServer::SetFdNonblock(int fd) {
     assert(fd > 0);
-    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFD, 0) | O_NONBLOCK);
+    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 }
 
 

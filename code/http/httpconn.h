@@ -43,27 +43,28 @@ public:
     
     bool process();
 
+    // 返回要发送数据的报文长度（包括头部和数据）
     int ToWriteBytes() { 
         return iov_[0].iov_len + iov_[1].iov_len; 
     }
-
+    // 是否保持长连接
     bool IsKeepAlive() const {
         return request_.IsKeepAlive();
     }
 
-    static bool isET;
-    static const char* srcDir;
-    static std::atomic<int> userCount;
+    static bool isET; //是否是边缘触发
+    static const char* srcDir; //用户目录
+    static std::atomic<int> userCount; // 原子操作的连接用户数
     
 private:
    
-    int fd_;
-    struct  sockaddr_in addr_;
+    int fd_;// 当前socket连接在系统中的文件描述符
+    struct  sockaddr_in addr_; // 当前连接对应的客户套接字
 
-    bool isClose_;
+    bool isClose_;// 当前连接是否存活
     
     int iovCnt_;
-    struct iovec iov_[2];
+    struct iovec iov_[2];// I/O区 ivo[0]是报文首部 ivo[1]是报文数据
     
     Buffer readBuff_; // 读缓冲区
     Buffer writeBuff_; // 写缓冲区

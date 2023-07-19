@@ -77,6 +77,7 @@ void SqlConnPool::ClosePool() {
     mysql_library_end();        
 }
 
+// 返回当前空闲的sql连接
 int SqlConnPool::GetFreeConnCount() {
     lock_guard<mutex> locker(mtx_);
     return connQue_.size();

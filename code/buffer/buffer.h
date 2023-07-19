@@ -13,15 +13,15 @@
 #include <vector> //readv
 #include <atomic>
 #include <assert.h>
-class Buffer {
+class Buffer { // socket-读写缓冲区
 public:
     Buffer(int initBuffSize = 1024);
     ~Buffer() = default;
 
-    size_t WritableBytes() const;       
-    size_t ReadableBytes() const ;
-    size_t PrependableBytes() const;
-
+    size_t WritableBytes() const;  // 返回可写数据大小
+    size_t ReadableBytes() const ;// 返回可读数据大小
+    size_t PrependableBytes() const; // 返回readPos_
+    // 返回当前读指针所处的位置
     const char* Peek() const;
     void EnsureWriteable(size_t len);
     void HasWritten(size_t len);
@@ -48,7 +48,7 @@ private:
     const char* BeginPtr_() const;
     void MakeSpace_(size_t len);
 
-    std::vector<char> buffer_;
+    std::vector<char> buffer_; // 缓冲区
     std::atomic<std::size_t> readPos_;
     std::atomic<std::size_t> writePos_;
 };

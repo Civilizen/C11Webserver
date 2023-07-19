@@ -24,7 +24,7 @@ void HeapTimer::SwapNode_(size_t i, size_t j) {
     ref_[heap_[j].id] = j;
 } 
 
-bool HeapTimer::siftdown_(size_t index, size_t n) {
+bool HeapTimer::siftdown_(size_t index, size_t n) {// 调整index节点在队列中的位置
     assert(index >= 0 && index < heap_.size());
     assert(n >= 0 && n <= heap_.size());
     size_t i = index;
@@ -122,7 +122,7 @@ void HeapTimer::clear() {
 }
 
 int HeapTimer::GetNextTick() {
-    tick();
+    tick(); // 先清理掉过期用户
     size_t res = -1;
     if(!heap_.empty()) {
         res = std::chrono::duration_cast<MS>(heap_.front().expires - Clock::now()).count();

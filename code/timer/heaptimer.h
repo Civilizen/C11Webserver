@@ -16,15 +16,15 @@
 #include <chrono>
 #include "../log/log.h"
 
-typedef std::function<void()> TimeoutCallBack;
+typedef std::function<void()> TimeoutCallBack; // 回调函数
 typedef std::chrono::high_resolution_clock Clock;
-typedef std::chrono::milliseconds MS;
+typedef std::chrono::milliseconds MS; // 毫秒
 typedef Clock::time_point TimeStamp;
 
 struct TimerNode {
     int id;
-    TimeStamp expires;
-    TimeoutCallBack cb;
+    TimeStamp expires; // 过期时间
+    TimeoutCallBack cb;  // 回调函数
     bool operator<(const TimerNode& t) {
         return expires < t.expires;
     }
@@ -43,7 +43,7 @@ public:
 
     void clear();
 
-    void tick();
+    void tick();/* 清除超时结点 */
 
     void pop();
 

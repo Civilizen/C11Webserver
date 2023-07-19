@@ -29,7 +29,7 @@ public:
         int port, // 服务端口
         int trigMode, // 触发模式
         int timeoutMS, // timeouts
-        bool OptLinger, // ?
+        bool OptLinger, // 优雅关闭
         int sqlPort, // mysql 端口
         const char* sqlUser, // mysql用户名称
         const  char* sqlPwd, // mysql密码
@@ -72,8 +72,8 @@ private:
     int listenFd_; // 监听的socket
     char* srcDir_; // webserver根目录
     
-    uint32_t listenEvent_;
-    uint32_t connEvent_;
+    uint32_t listenEvent_; // 监听模式
+    uint32_t connEvent_; // 连接模式
    
     std::unique_ptr<HeapTimer> timer_; // 计时器
     std::unique_ptr<ThreadPool> threadpool_; // 线程池
