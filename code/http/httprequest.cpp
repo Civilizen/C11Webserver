@@ -48,17 +48,14 @@ bool HttpRequest::parse(Buffer& buff) {
             break;    
         case HEADERS:
             if(ParseHeader_(line)){ // 解析出头部的信息
-                cout<<"now in ParseHeader_()\n";
                 // 表示头部已经分析完毕，且该报文不携带数据段
                 if(buff.ReadableBytes() <= 2) {
                     state_ = FINISH;
                 }
                 break;
             }
-            cout<<"now in HEADERS\n";
             // 未解析出头部的信息，应当交付给body来处理
         case BODY:
-            cout<<"now in BODY\n";
             ParseBody_(line);
             break;
         default:
@@ -74,16 +71,16 @@ bool HttpRequest::parse(Buffer& buff) {
 
 // 如果访问的是不被允许的地址，则重定向到根目录
 void HttpRequest::ParsePath_() {
-    int flag = 1;
-    for(auto &item: DEFAULT_HTML) {
-        if(item == path_) {
-            path_ += ".html";
-            flag = 0;
-            break;
-        }
-    }
-    if(flag) { // 引导根目录
+    if(path_ == "/") {
         path_ = "/index.html"; 
+    }
+    else {
+        for(auto &item: DEFAULT_HTML) {
+            if(item == path_) {
+                path_ += ".html";
+                break;
+            }
+        }
     }
 }
 
