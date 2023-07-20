@@ -64,7 +64,7 @@ private:
     // 解析请求行
     bool ParseRequestLine_(const std::string& line);
     // 解析头部
-    void ParseHeader_(const std::string& line);
+    bool ParseHeader_(const std::string& line);
     // 解析数据
     void ParseBody_(const std::string& line);
     // 拆分path

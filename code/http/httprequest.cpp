@@ -47,13 +47,18 @@ bool HttpRequest::parse(Buffer& buff) {
             ParsePath_();// 把path进一步细化
             break;    
         case HEADERS:
-            ParseHeader_(line);
-            // 表示头部已经分析完毕，且该报文不携带数据段
-            if(buff.ReadableBytes() <= 2) {
-                state_ = FINISH;
+            if(ParseHeader_(line)){ // 解析出头部的信息
+                cout<<"now in ParseHeader_()\n";
+                // 表示头部已经分析完毕，且该报文不携带数据段
+                if(buff.ReadableBytes() <= 2) {
+                    state_ = FINISH;
+                }
+                break;
             }
-            break;
+            cout<<"now in HEADERS\n";
+            // 未解析出头部的信息，应当交付给body来处理
         case BODY:
+            cout<<"now in BODY\n";
             ParseBody_(line);
             break;
         default:
@@ -67,7 +72,7 @@ bool HttpRequest::parse(Buffer& buff) {
     return true;
 }
 
-// 函数有问题，如果访问的是不被允许的地址，则重定向到根目录
+// 如果访问的是不被允许的地址，则重定向到根目录
 void HttpRequest::ParsePath_() {
     int flag = 1;
     for(auto &item: DEFAULT_HTML) {
@@ -97,15 +102,17 @@ bool HttpRequest::ParseRequestLine_(const string& line) {
     return false;
 }
 
-void HttpRequest::ParseHeader_(const string& line) {
+bool HttpRequest::ParseHeader_(const string& line) {
+    /* "Connection: keep-alive" */
     regex patten("^([^:]*): ?(.*)$");
     smatch subMatch;
     if(regex_match(line, subMatch, patten)) {
         header_[subMatch[1]] = subMatch[2];
+        return true;
     }
-    else {
-        state_ = BODY;
-    }
+    // 如果没有这种类型的数据了，则转移状态到BODY，用BODY的方式去解析
+    state_ = BODY;
+    return false;
 }
 
 void HttpRequest::ParseBody_(const string& line) {
