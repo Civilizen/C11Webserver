@@ -5,7 +5,7 @@
  */ 
 #include "httprequest.h"
 using namespace std;
-
+// 默认路由页面
 const unordered_set<string> HttpRequest::DEFAULT_HTML{
             "/index", "/register", "/login",
              "/welcome", "/video", "/picture", };
@@ -28,12 +28,15 @@ bool HttpRequest::IsKeepAlive() const {
 }
 
 bool HttpRequest::parse(Buffer& buff) {
-    const char CRLF[] = "\r\n";
+    const char CRLF[] = "\r\n";// 换行符
     if(buff.ReadableBytes() <= 0) {
         return false;
     }
+    // 有穷自动机，将数据分析后填充到请求报文类的数据中
     while(buff.ReadableBytes() && state_ != FINISH) {
+        // 查找换行符前的字符位置 "abcdc\r\n" -> 返回'\r'中'\'所在的位置
         const char* lineEnd = search(buff.Peek(), buff.BeginWriteConst(), CRLF, CRLF + 2);
+        // 解析出一行的数据
         std::string line(buff.Peek(), lineEnd);
         switch(state_)
         {
@@ -41,10 +44,11 @@ bool HttpRequest::parse(Buffer& buff) {
             if(!ParseRequestLine_(line)) {
                 return false;
             }
-            ParsePath_();
+            ParsePath_();// 把path进一步细化
             break;    
         case HEADERS:
             ParseHeader_(line);
+            // 表示头部已经分析完毕，且该报文不携带数据段
             if(buff.ReadableBytes() <= 2) {
                 state_ = FINISH;
             }
@@ -55,35 +59,38 @@ bool HttpRequest::parse(Buffer& buff) {
         default:
             break;
         }
-        if(lineEnd == buff.BeginWrite()) { break; }
+        // 所有数据都已分析完毕
+        if(lineEnd == buff.BeginWriteConst()) { break; }
         buff.RetrieveUntil(lineEnd + 2);
     }
     LOG_DEBUG("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
     return true;
 }
 
+// 函数有问题，如果访问的是不被允许的地址，则重定向到根目录
 void HttpRequest::ParsePath_() {
-    if(path_ == "/") {
-        path_ = "/index.html"; 
-    }
-    else {
-        for(auto &item: DEFAULT_HTML) {
-            if(item == path_) {
-                path_ += ".html";
-                break;
-            }
+    int flag = 1;
+    for(auto &item: DEFAULT_HTML) {
+        if(item == path_) {
+            path_ += ".html";
+            flag = 0;
+            break;
         }
+    }
+    if(flag) { // 引导根目录
+        path_ = "/index.html"; 
     }
 }
 
 bool HttpRequest::ParseRequestLine_(const string& line) {
+    /* "GET /picture HTTP/1.1" */
     regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
     smatch subMatch;
     if(regex_match(line, subMatch, patten)) {   
-        method_ = subMatch[1];
-        path_ = subMatch[2];
-        version_ = subMatch[3];
-        state_ = HEADERS;
+        method_ = subMatch[1]; // http 请求方法
+        path_ = subMatch[2]; // 请求路径
+        version_ = subMatch[3]; // http版本
+        state_ = HEADERS; // 状态转移为解析请求报文头部
         return true;
     }
     LOG_ERROR("RequestLine Error");

@@ -53,4 +53,5 @@ void TestThreadPool() {
 int main() {
     TestLog();
     TestThreadPool();
+    return 0;
 }

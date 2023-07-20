@@ -51,10 +51,12 @@ std::string Buffer::RetrieveAllToStr() {
     return str;
 }
 
+// 返回缓冲区中写指针的起始地址
 const char* Buffer::BeginWriteConst() const {
     return BeginPtr_() + writePos_;
 }
 
+// 返回缓冲区中写指针的起始地址
 char* Buffer::BeginWrite() {
     return BeginPtr_() + writePos_;
 }
@@ -134,6 +136,7 @@ char* Buffer::BeginPtr_() {
     return &*buffer_.begin();
 }
 
+// 返回缓冲区的指针
 const char* Buffer::BeginPtr_() const {
     return &*buffer_.begin();
 }
