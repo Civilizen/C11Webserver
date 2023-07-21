@@ -47,14 +47,12 @@ bool HttpRequest::parse(Buffer& buff) {
             ParsePath_();// 把path进一步细化
             break;    
         case HEADERS:
-            if(ParseHeader_(line)){ // 解析出头部的信息
-                // 表示头部已经分析完毕，且该报文不携带数据段
-                if(buff.ReadableBytes() <= 2) {
-                    state_ = FINISH;
-                }
-                break;
+            ParseHeader_(line);// 解析出头部的信息
+                // 表示头部已经分析完毕，且该报文不携带数据段 空数据“\r\n\r\n”
+            if(buff.ReadableBytes() <= 2) {
+                state_ = FINISH;
             }
-            // 未解析出头部的信息，应当交付给body来处理
+            break;
         case BODY:
             ParseBody_(line);
             break;
@@ -69,7 +67,7 @@ bool HttpRequest::parse(Buffer& buff) {
     return true;
 }
 
-// 如果访问的是不被允许的地址，则重定向到根目录
+
 void HttpRequest::ParsePath_() {
     if(path_ == "/") {
         path_ = "/index.html"; 
@@ -114,6 +112,7 @@ bool HttpRequest::ParseHeader_(const string& line) {
 
 void HttpRequest::ParseBody_(const string& line) {
     body_ = line;
+    // 解析出body中post的信息
     ParsePost_();
     state_ = FINISH;
     LOG_DEBUG("Body:%s, len:%d", line.c_str(), line.size());
@@ -125,14 +124,17 @@ int HttpRequest::ConverHex(char ch) {
     return ch;
 }
 
+// 从 body 中解析出post的部分
 void HttpRequest::ParsePost_() {
+    // 判断是不是表单数据
     if(method_ == "POST" && header_["Content-Type"] == "application/x-www-form-urlencoded") {
         ParseFromUrlencoded_();
         if(DEFAULT_HTML_TAG.count(path_)) {
             int tag = DEFAULT_HTML_TAG.find(path_)->second;
             LOG_DEBUG("Tag:%d", tag);
             if(tag == 0 || tag == 1) {
-                bool isLogin = (tag == 1);
+                bool isLogin = (tag == 1);// 查看是登录还是注册
+                // 登录/注册验证
                 if(UserVerify(post_["username"], post_["password"], isLogin)) {
                     path_ = "/welcome.html";
                 } 
@@ -144,8 +146,9 @@ void HttpRequest::ParsePost_() {
     }   
 }
 
+/* username=base511&password=base511 */
 void HttpRequest::ParseFromUrlencoded_() {
-    if(body_.size() == 0) { return; }
+    if(body_.size() == 0) { return; } // 不带有额外数据
 
     string key, value;
     int num = 0;
@@ -186,8 +189,9 @@ void HttpRequest::ParseFromUrlencoded_() {
 }
 
 bool HttpRequest::UserVerify(const string &name, const string &pwd, bool isLogin) {
-    if(name == "" || pwd == "") { return false; }
+    if(name == "" || pwd == "") { return false; } // 用户信息不能为空
     LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
+    // 从SQL连接池里获取一个连接实例
     MYSQL* sql;
     SqlConnRAII(&sql,  SqlConnPool::Instance());
     assert(sql);
@@ -203,8 +207,8 @@ bool HttpRequest::UserVerify(const string &name, const string &pwd, bool isLogin
     snprintf(order, 256, "SELECT username, password FROM user WHERE username='%s' LIMIT 1", name.c_str());
     LOG_DEBUG("%s", order);
 
-    if(mysql_query(sql, order)) { 
-        mysql_free_result(res);
+    if(mysql_query(sql, order)) { // 执行sql语句失败
+        mysql_free_result(res); // 释放申请的内存
         return false; 
     }
     res = mysql_store_result(sql);

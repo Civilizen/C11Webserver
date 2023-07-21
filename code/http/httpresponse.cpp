@@ -56,7 +56,7 @@ HttpResponse::~HttpResponse() {
 
 void HttpResponse::Init(const string& srcDir, string& path, bool isKeepAlive, int code){
     assert(srcDir != "");
-    if(mmFile_) { UnmapFile(); }
+    if(mmFile_) { UnmapFile(); }// 释放已有的内存映射
     code_ = code;
     isKeepAlive_ = isKeepAlive;
     path_ = path;
@@ -76,8 +76,13 @@ void HttpResponse::MakeResponse(Buffer& buff) {
     else if(code_ == -1) { 
         code_ = 200; 
     }
-    ErrorHtml_();
-    AddStateLine_(buff);
+    ErrorHtml_(); // 指定错误页面
+    AddStateLine_(buff);// HTTP/1.1 200 OK
+    /*
+    Connection: keep-alive
+    keep-alive: max=6, timeout=120
+    Content-type: text/html
+    */
     AddHeader_(buff);
     AddContent_(buff);
 }
@@ -98,8 +103,8 @@ void HttpResponse::ErrorHtml_() {
 }
 
 void HttpResponse::AddStateLine_(Buffer& buff) {
-    string status;
-    if(CODE_STATUS.count(code_) == 1) {
+    string status; //状态描述
+    if(CODE_STATUS.count(code_) == 1) { //
         status = CODE_STATUS.find(code_)->second;
     }
     else {
@@ -113,16 +118,17 @@ void HttpResponse::AddHeader_(Buffer& buff) {
     buff.Append("Connection: ");
     if(isKeepAlive_) {
         buff.Append("keep-alive\r\n");
-        buff.Append("keep-alive: max=6, timeout=120\r\n");
-    } else{
+        buff.Append("keep-alive: max=6, timeout=120\r\n");// 设置过时时间
+    } else{// 否则关闭连接
         buff.Append("close\r\n");
     }
     buff.Append("Content-type: " + GetFileType_() + "\r\n");
 }
 
 void HttpResponse::AddContent_(Buffer& buff) {
+    // 打开对应的文件
     int srcFd = open((srcDir_ + path_).data(), O_RDONLY);
-    if(srcFd < 0) { 
+    if(srcFd < 0) { // 找不到文件
         ErrorContent(buff, "File NotFound!");
         return; 
     }
@@ -131,12 +137,14 @@ void HttpResponse::AddContent_(Buffer& buff) {
         MAP_PRIVATE 建立一个写入时拷贝的私有映射*/
     LOG_DEBUG("file path %s", (srcDir_ + path_).data());
     int* mmRet = (int*)mmap(0, mmFileStat_.st_size, PROT_READ, MAP_PRIVATE, srcFd, 0);
-    if(*mmRet == -1) {
-        ErrorContent(buff, "File NotFound!");
+    if(*mmRet == -1) { //映射失败
+        // 文件映射失败，也需要指定失败的返回信息
+        ErrorContent(buff, "File NotFound!"); 
         return; 
     }
     mmFile_ = (char*)mmRet;
-    close(srcFd);
+    close(srcFd); // 关闭文件
+    // 在响应报文头部指定文件内容的大小
     buff.Append("Content-length: " + to_string(mmFileStat_.st_size) + "\r\n\r\n");
 }
 

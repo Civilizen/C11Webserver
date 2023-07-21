@@ -70,14 +70,16 @@ private:
     // 拆分path
     void ParsePath_();
     void ParsePost_();
+    // 从post的url中解析出字典，然后存放到post_字典中
     void ParseFromUrlencoded_();
-
+    // 验证用户信息
     static bool UserVerify(const std::string& name, const std::string& pwd, bool isLogin);
 
     PARSE_STATE state_; // 自动机当前状态
     std::string method_, path_, version_, body_;
     // 字典格式的请求报文头
     std::unordered_map<std::string, std::string> header_;
+    // 表单字典
     std::unordered_map<std::string, std::string> post_;
     // 目录路由
     static const std::unordered_set<std::string> DEFAULT_HTML;

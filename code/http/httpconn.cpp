@@ -73,21 +73,22 @@ ssize_t HttpConn::read(int* saveErrno) {
 ssize_t HttpConn::write(int* saveErrno) {
     ssize_t len = -1;
     do {
-        len = writev(fd_, iov_, iovCnt_);
+        len = writev(fd_, iov_, iovCnt_); // 非阻塞SOCKET的IO，一次不一定能全部写入
         if(len <= 0) {
             *saveErrno = errno;
             break;
         }
         if(iov_[0].iov_len + iov_[1].iov_len  == 0) { break; } /* 传输结束 */
-        else if(static_cast<size_t>(len) > iov_[0].iov_len) {
+        else if(static_cast<size_t>(len) > iov_[0].iov_len) { // 第一个块已经被全部传输完毕
             iov_[1].iov_base = (uint8_t*) iov_[1].iov_base + (len - iov_[0].iov_len);
             iov_[1].iov_len -= (len - iov_[0].iov_len);
-            if(iov_[0].iov_len) {
+            // 清空第一个iov块中的信息
+            if(iov_[0].iov_len) { 
                 writeBuff_.RetrieveAll();
                 iov_[0].iov_len = 0;
             }
         }
-        else {
+        else { // 第一个块传输的东西没传输完
             iov_[0].iov_base = (uint8_t*)iov_[0].iov_base + len; 
             iov_[0].iov_len -= len; 
             writeBuff_.Retrieve(len);
@@ -104,6 +105,7 @@ bool HttpConn::process() {
     // 成功解析http报文，创建响应报文
     else if(request_.parse(readBuff_)) {
         LOG_DEBUG("%s", request_.path().c_str());
+        // 创建响应报文
         response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);
     } 
     // 解析报文失败，创建响应报文，返回错误代码

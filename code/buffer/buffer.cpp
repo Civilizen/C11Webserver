@@ -65,6 +65,7 @@ void Buffer::HasWritten(size_t len) {
     writePos_ += len;
 } 
 
+// 往Buffer里面加入东西
 void Buffer::Append(const std::string& str) {
     Append(str.data(), str.length());
 }

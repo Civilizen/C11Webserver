@@ -55,4 +55,30 @@ class HttpConn{
   + ToWriteBytes():int
   + IsKeepAlive():bool
 }
+
+class HttpResponse {
+  +  HttpResponse();
+  +  ~HttpResponse();
+  +  void Init(const string& srcDir, string& path, bool isKeepAlive = false, int code = -1);
+  +  void MakeResponse(Buffer& buff);
+  +  void UnmapFile();
+  +  char* File();
+  +  size_t FileLen() const;
+  +  void ErrorContent(Buffer& buff, string message);
+  +  int Code() const { return code_; }
+  -  void AddStateLine_(Buffer &buff);
+  -  void AddHeader_(Buffer &buff);
+  -  void AddContent_(Buffer &buff);
+  - void ErrorHtml_();
+  -  string GetFileType_();
+  -  int code_;
+  -  bool isKeepAlive_;
+  -  string path_;
+  -  string srcDir_;
+  - char* mmFile_; 
+  - struct stat mmFileStat_;
+  - {static} const unordered_map<string, string> SUFFIX_TYPE;
+  - {static} const unordered_map<int, string> CODE_STATUS;
+  - {static} const unordered_map<int, string> CODE_PATH;
+}
 @enduml
